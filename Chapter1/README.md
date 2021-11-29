@@ -2,8 +2,8 @@
 
 | Exercise | Status | 
 | --- | --- |
-| [Page 11](#exercise-page-11) | - [x] |
-| [Page 11](#exercise-page-11) | - [x] |
+| [Page 11](#exercise-page-11) | :heavy_check_mark: |
+| [Page 11](#exercise-page-11) |  |
 
 ## Exercise page 11
 
