@@ -9,4 +9,4 @@ If you have any corrections or remarks, please tell me and I'd appreciate it!
 
 | Chapter | Progress | 
 | --- | --- | 
-| Chapter 1 __x86 and x64__ | - [x] |
+| Chapter 1 __x86 and x64__ | :heavy_check_mark: |
