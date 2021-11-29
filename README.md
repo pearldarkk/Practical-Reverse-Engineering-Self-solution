@@ -7,6 +7,6 @@ Hope someone would find this useful 🙂
 If you have any corrections or remarks, please tell me and I'd appreciate it!
 
 
-| Chapter 1 x86 and x64 | - [ ] | sdf |
-| --- | --- | --- |
-|  |  |
+| Chapter | Progress | 
+| --- | --- | 
+| Chapter 1 __x86 and x64__ | - [x] |
