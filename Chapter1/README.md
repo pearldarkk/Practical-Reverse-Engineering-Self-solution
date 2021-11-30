@@ -22,10 +22,10 @@ Setting 2 breakpoints at line 11, 12 and debug, I realize that right before exec
 2.  We can't just simply do `mov eip, 0xAABBCCDD` or similar since `eip` is not a GPR.  
 - Knowing `ret` just pops the value on top of the stack to `eip` to execute, I came up with [this](p1721.asm) idea...  
 You might face an *Frame not in module* error while running but don't worry. Now `eip` has pointed to our offset!
-- Another trick is using [`call`](p1723.asm) or [`jmp`](p1722.asm) family. Try call it with our offset, but in masm we can't do it directly so I put our value in `eax`.
+- Another trick is using [`call`](p1723.asm) or [`jmp`](p1722.asm) family. Try calling it with our offset, but in masm we can't do it directly so I put our value in `eax`.
 `call` is just a `jmp` and a `push` onto the stack.  
 
-3. In general, if we don't re-align the stack before calling `ret`, `eip` might receive the wrong value to execute and caused much trouble.  
+3. In general, if we don't re-align the stack before calling `ret`, `eip` might receive the wrong value to execute and therefore cause much trouble.  
 But in this example, since the function `addme` didn't make any `push` or `pop` instruction, the `esp` was not modified at all, so, even if we did not restore it, nothing would go wrong.    
 
 4. Write [a simple C program](p174.c) to experiment. After compiling with MS C++ Compiler, we have an [listing file](p174.cod) here.  
