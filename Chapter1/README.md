@@ -10,7 +10,7 @@
 `[ebp + 8]` appeared to be a byte sequence of size unknown (but not greater than 0FFFFFFFFh). Speaking C way, this is a null-terminated string.  
 `[ebp + 0Ch]` appeared to be a byte. In C, it is a character.
 
-This snippet first loop through the sequence until it meets a NULL. Then it replace all bytes of the sequence with the value of `[ebp + 0Ch]`.
+This snippet first loop through the sequence until it meets a NULL. Then it replaces all bytes of the sequence with the value of `[ebp + 0Ch]`.
 
 I took some extra steps to get a compilable x86 MASM [file](p11.asm). I have left comment after each line of code.
 
@@ -47,7 +47,7 @@ Look at line 77:
   00049	e8 00 00 00 00	 call	 _func
   0004e	83 c4 10	 add	 esp, 16			; 00000010H
 ```
-I created a struct of 3 ints (3 double-words). The compiler first copied the value to a new offset, then push the base address onto the stack to pass to my function `func`. On the function, the `return` part which started from line 167 was:
+I created a struct of 3 ints (3 double-words). The compiler first copies the value to a new offset, then pushes the base address onto the stack to pass to my function `func`. On the function, the `return` part which started from line 167 is:
 ```
 ; 13   :     return obj;
 
@@ -65,7 +65,7 @@ I tried compiling it with GCC to get [this file](p174.s):
 ```
 $ gcc -fverbose-asm -S p174.c -o p174.s -O0 -masm=intel -m32
 ```
-Take a look at `main` function and we can see the arguments was passed to function by stack at line 97:
+Take a look at `main` function and we can see the arguments is passed to function by stack at line 97:
 ```
 # p174.c:18:     dat.x = 2;
 	mov	DWORD PTR -20[ebp], 2	# dat.x,
@@ -78,7 +78,7 @@ Take a look at `main` function and we can see the arguments was passed to functi
 	call	func	#
 	add	esp, 12	#,
 ```
-One more `cdecl` call and it pushed all 3 values onto the stack. In the `func` function, our `return` was implemented at line 63:
+One more `cdecl` call and it pushes all 3 values onto the stack. In the `func` function, our `return` is implemented at line 63:
 ```
 # p174.c:13:     return obj;
 	mov	eax, DWORD PTR 8[ebp]	# tmp85, .result_ptr
@@ -89,6 +89,6 @@ One more `cdecl` call and it pushed all 3 values onto the stack. In the `func` f
 	mov	edx, DWORD PTR 20[ebp]	# tmp88, obj
 	mov	DWORD PTR 8[eax], edx	# <retval>, tmp88
 ```
-In this `return` progress, the compiler store the base address of the struct onto the `eax` register to be the return value.
+In this `return` progress, the compiler stores the base address of the struct onto the `eax` register to be the return value.
 
-So, by some experiment on MS C++ Compiler and GCC compiler, we can say the mechanism doesn't vary between compilers.
+So, by some experiment on the MS C++ Compiler and GCC compiler, we can say the mechanism doesn't vary between compilers.
