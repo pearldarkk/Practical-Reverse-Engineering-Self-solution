@@ -7,7 +7,7 @@
 
 ## Exercise page 11
 
-`[ebp + 8]` appeared to be a byte sequence of size 0FFFFFFFFh. Speaking C way, this is a null-terminated string.  
+`[ebp + 8]` appeared to be a byte sequence of size unknown (but not greater than 0FFFFFFFFh). Speaking C way, this is a null-terminated string.  
 `[ebp + 0Ch]` appeared to be a byte. In C, it is a character.
 
 This snippet first loop through the sequence until it meets a NULL. Then it replace all bytes of the sequence with the value of `[ebp + 0Ch]`.
@@ -16,7 +16,7 @@ I took some extra steps to get a compilable x86 MASM [file](p11.asm). I have lef
 
 ## Exercise page 17  
 1. Since `eip` is not a general purpose register, it doesn't support `mov eax, eip`.
-We know `call` put the offset about to be execute after the call (value of EIP after the call) on top of the stack, and we can access value on the stack, maybe this [code](/p171.asm) would do the trick?  
+We know `call` put the offset about to be executed after the call (value of EIP after the call) on top of the stack, and we can access value on the stack, maybe this [code](/p171.asm) would do the trick?  
 Setting 2 breakpoints at line 11, 12 and debug, I realize that right before execute line 12, we got the right value of `eip` in our register `eax`! We can see the value of `eip` after the call is 5 bytes greater than the value before the call, since the `call` instruction size is 5 bytes (could be seen by looking at Memory view when  debug).  
   
 2.  We can't just simply do `mov eip, 0xAABBCCDD` or similar since `eip` is not a GPR.  
