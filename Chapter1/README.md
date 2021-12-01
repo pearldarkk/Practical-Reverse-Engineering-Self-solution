@@ -89,6 +89,6 @@ One more `cdecl` call and it pushes all 3 values onto the stack. In the `func` f
 	mov	edx, DWORD PTR 20[ebp]	# tmp88, obj
 	mov	DWORD PTR 8[eax], edx	# <retval>, tmp88
 ```
-In this `return` progress, the compiler stores the base address of the struct onto the `eax` register to be the return value.
+In this `return` process, the compiler stores the base address of the struct onto the `eax` register to be the return value.
 
 So, by some experiment on the MS C++ Compiler and GCC compiler, we can say the mechanism doesn't vary between compilers.

@@ -6,7 +6,7 @@
         {
             "type": "shell",
             "label": "Build C++",
-            "command": "g++",
+            "command": "gcc",
             "args": [
                 "${file}",
                 "-otest",
