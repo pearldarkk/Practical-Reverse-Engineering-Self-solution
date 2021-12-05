@@ -4,6 +4,7 @@
 | --- | --- |
 | [Page 11](#exercise-page-11) | :heavy_check_mark: |
 | [Page 17](#exercise-page-17) | :heavy_check_mark: |
+| [Page 35 - 36](#exercise-page-35-36) | :heavy_check_mark: |
 
 ## Exercise page 11
 
@@ -92,3 +93,7 @@ One more `cdecl` call and it pushes all 3 values onto the stack. In the `func` f
 To implement `return`, the compiler stores the base address of the struct onto the `eax` register to be the return value.
 
 So, by some experiment on the MS C++ Compiler and GCC compiler, we can say the mechanism doesn't vary between compilers.
+
+# Exercise page 35 - 36
+
+1. The stack layout is described in [this gg sheet](https://docs.google.com/spreadsheets/d/1AQREVVd0bjASfqp_hRH5qtiQxko3ucsZ3aO7q1_bCl4/edit?usp=sharing). If there is any mistakes, hope someone would point it out!
