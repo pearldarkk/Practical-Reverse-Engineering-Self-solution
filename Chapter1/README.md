@@ -4,7 +4,7 @@
 | --- | --- |
 | [Page 11](#exercise-page-11) | :heavy_check_mark: |
 | [Page 17](#exercise-page-17) | :heavy_check_mark: |
-| [Page 35 - 36](#exercise-page-35-36) | :heavy_check_mark: |
+| [Page 35 - 36](#exercise-page-35---36) | :heavy_check_mark: |
 
 ## Exercise page 11
 
@@ -97,3 +97,130 @@ So, by some experiment on the MS C++ Compiler and GCC compiler, we can say the m
 # Exercise page 35 - 36
 
 1. The stack layout is described in [this gg sheet](https://docs.google.com/spreadsheets/d/1AQREVVd0bjASfqp_hRH5qtiQxko3ucsZ3aO7q1_bCl4/edit?usp=sharing). If there is any mistake, hope someone would point it out!
+2. Here is my [re-decompile work](p352.c). 
+3. A `_` prefix and a `@` postfix followed by a number is used with functions using `stdcall` calling convention and the number after `@` indicates how many bytes are used for function paramaters. Windows' dlls use this by default.
+4. My implement for:  
+-  `strlen` function: Loop through string and compare until meet a NULL byte.
+```assembly
+strlen proc
+    push    ebp
+    mov     ebp, esp
+    mov     edi, [ebp + 8]
+    mov     ecx, 0ffffffffh
+    xor     al, al
+    repne   scasb 
+    sub     edi, [ebp + 8]
+    dec     edi
+    mov     eax, edi
+    mov     esp, ebp
+    pop     ebp
+    ret     4
+strlen endp
+```
+- `strchr` function: Loop through the string. If meet the character, return the position. If meet a NULL, it means the string doesn't contain the character, return the `ptr`.
+```assembly
+strchr proc
+    push    ebp
+    mov     ebp, esp
+    mov     edi, [ebp + 8]
+    mov     al, byte ptr [ebp + 0ch]
+    mov     ah, 0
+    compare:
+    cmp     byte ptr [edi], ah
+    jz      fail
+    scasb
+    jne     compare  
+    sub     edi, [ebp + 8]
+    mov     eax, edi
+    mov     esp, ebp
+    pop     ebp
+    ret     8
+    fail:
+    mov     eax, 0
+    mov     esp, ebp
+    pop     ebp
+    ret     8
+strchr endp
+```
+- `memset` function: Loop through the string byte-to-byte for `size` time and set each to the value. Return the `ptr`.
+```assembly
+memset proc
+    push    ebp
+    mov     ebp, esp
+    mov     edi, [ebp + 8]
+    mov     al, byte ptr [ebp + 0ch]
+    mov     ecx, [ebp + 10h]
+    rep     stosb
+    mov     eax, [ebp + 8]
+    mov     esp, ebp
+    pop     ebp
+    ret     0ch
+memset endp
+```
+- `strcmp` function: First find one string's length so that we know how maximum times we need to loop through the 2 string and compare. If meets any different before reach the limit, stop execution and return the result based on the flags affected by the `cmpsb` instruction. If we continously meet equal characters for `len` times, it is probably equal (if the other string reachs its end too) or the string we calculated length is smaller in size. 
+```assembly
+strcmp proc
+    push    ebp
+    mov     ebp, esp
+    mov     ecx, 0ffffffffh
+    mov     esi, [ebp + 8]
+    ; calc strlen to count loops
+    mov     edi, [ebp + 0ch]
+    mov     ecx, 0ffffffffh
+    xor     al, al
+    repne   scasb
+    sub     edi, [ebp + 0ch]
+    dec     edi
+    mov     ecx, edi
+
+    mov     edi, [ebp + 0ch]
+    compare:
+    repe    cmpsb
+    jg      greater
+    jl      less
+    test    ecx, ecx
+    jnz     greater
+    cmp     byte ptr [esi], 0
+    jnz     greater
+    mov     eax, 0
+    mov     esp, ebp
+    pop     ebp
+    ret     8    
+
+    greater:
+    mov     eax, 1
+    mov     esp, ebp
+    pop     ebp
+    ret     8
+
+    less:
+    mov     eax, 0ffffffffh
+    mov     esp, ebp
+    pop     ebp
+    ret     8
+strcmp endp
+```
+
+- `strset` function: set all characters in the string to `char` except the NULL character.
+```assembly
+strset proc
+    push    ebp
+    mov     ebp, esp
+
+    ; calc strlen
+    mov     edi, [ebp + 8]
+    mov     al, 0
+    mov     ecx, 0ffffffffh
+    repne   scasb
+    sub     edi, [ebp +8]
+    dec     edi
+    mov     ecx, edi        ; set timer
+    mov     edi, [ebp + 8]
+    mov     al, [ebp + 0ch]
+    rep     stosb
+    mov     eax, [ebp + 8]
+    mov     esp, ebp
+    pop     ebp
+    ret     8
+strset endp
+```
