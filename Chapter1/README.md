@@ -31,7 +31,7 @@ But in this example, since the function `addme` didn't make any `push` or `pop` 
 
 4. Write [a simple C program](p174.c) to experiment. After compiling with MS C++ Compiler, we have an [listing file](p174.cod) here.  
 Look at line 77:
-```
+```assembly
 ; 19   :     func(dat);
 
   0002c	83 ec 0c	 sub	 esp, 12			; 0000000cH
@@ -49,7 +49,7 @@ Look at line 77:
   0004e	83 c4 10	 add	 esp, 16			; 00000010H
 ```
 I created a struct of 3 ints (3 double-words). The compiler first copies the value to a new offset, then pushes the base address onto the stack to pass to my function `func`. On the function, the `return` part which started from line 167 is:
-```
+```assembly
 ; 13   :     return obj;
 
   00031	8b 45 08	 mov	 eax, DWORD PTR $T1[ebp]
@@ -67,7 +67,7 @@ I tried compiling it with GCC to get [this file](p174.s):
 $ gcc -fverbose-asm -S p174.c -o p174.s -O0 -masm=intel -m32
 ```
 Take a look at `main` function and we can see the arguments is passed to function by stack at line 97:
-```
+```assembly
 # p174.c:18:     dat.x = 2;
 	mov	DWORD PTR -20[ebp], 2	# dat.x,
 # p174.c:19:     func(dat);
@@ -80,7 +80,7 @@ Take a look at `main` function and we can see the arguments is passed to functio
 	add	esp, 12	#,
 ```
 One more `cdecl` call and it pushes all 3 values onto the stack. In the `func` function, our `return` is implemented at line 63:
-```
+```assembly
 # p174.c:13:     return obj;
 	mov	eax, DWORD PTR 8[ebp]	# tmp85, .result_ptr
 	mov	edx, DWORD PTR 12[ebp]	# tmp86, obj
