@@ -1,4 +1,4 @@
-# Practical Reverse Engineering - Self-solution
+# Practical Reverse Engineering Walkthrough
 
 My write-up for the book *__Practical Reverse Engineering__*'s exercises. 
 
