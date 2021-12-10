@@ -96,9 +96,12 @@ So, by some experiment on the MS C++ Compiler and GCC compiler, we can say the m
 
 # Exercise page 35 - 36
 
-1. The stack layout is described in [this gg sheet](https://docs.google.com/spreadsheets/d/1AQREVVd0bjASfqp_hRH5qtiQxko3ucsZ3aO7q1_bCl4/edit?usp=sharing). If there is any mistake, hope someone would point it out!
-2. Here is my [re-decompile work](p352.c). 
-3. A `_` prefix and a `@` postfix followed by a number is used with functions using `stdcall` calling convention and the number after `@` indicates how many bytes are used for function paramaters. Windows' dlls use this by default.
+1. The stack layout is described in [this gg sheet](https://docs.google.com/spreadsheets/d/1AQREVVd0bjASfqp_hRH5qtiQxko3ucsZ3aO7q1_bCl4/edit?usp=sharing). If there is any mistake, hope someone would point it out!  
+
+2. Here is my [re-decompile work](p352.c).   
+
+3. A `_` prefix and a `@` postfix followed by a number is used with functions using `stdcall` calling convention and the number after `@` indicates how many bytes are used for function paramaters. Windows' dlls use this by default.  
+
 4. My implement for:  
 -  `strlen` function: Loop through string and compare until meet a NULL byte.
 ```assembly
@@ -224,3 +227,84 @@ strset proc
     ret     8
 strset endp
 ```
+I put all these functions inside my [masm program]([p354.asm]) here. Debug it if you need to!  
+
+5. Decompile some kernel routines in Windows:  
+
+First you need some preparation to be able to debug kernel (so that we can decompile it). I wrote [a short tutorial](https://github.com/pearldarkk/Windows-Kernel-Debugging) about settup between 2 Windows VM so that no amateur (like me) would take few days just to do it...  
+  
+At the tutorial I used a x64 target Windows but since we're learning x86 so please use a x86 Windows VM instead (I use Win10 32bit version).  Remember to break into the process (`Debug` -> `Break`).
+
+Some resources I found useful (if you are a beginner like me, i think you'll need):  
+- Common command references from `windbg.info`: http://windbg.info/doc/1-common-cmds.html  
+- A video about how to debug kernel in a vm from physical computer (he also show how to decompile an example kernel too): https://www.youtube.com/watch?v=ch8AuPsZ3aM&t=156s
+- Focus on how he take a shortcut to load symbols: https://voidsec.com/windows-kernel-debugging-exploitation/#More_Windows_Debuggee_Flavours
+- If something goes wrong with your symbols: https://stackoverflow.com/questions/30019889/how-to-set-up-symbols-in-windbg  
+
+Now let's get started, first with `KeInitializeDpc`. Disassemble the function:  
+```
+uf keinitializedpc
+```
+If you're debugging a x86 Win 10 machine like me, you should receive an ouput similar to this:
+```assembly
+kd> uf keinitializedpc
+nt!KeInitializeDpc:
+8237cc3a 8bff            mov     edi,edi
+8237cc3c 55              push    ebp
+8237cc3d 8bec            mov     ebp,esp
+8237cc3f 8b4d08          mov     ecx,dword ptr [ebp+8]
+8237cc42 8b450c          mov     eax,dword ptr [ebp+0Ch]
+8237cc45 83611c00        and     dword ptr [ecx+1Ch],0
+8237cc49 83610800        and     dword ptr [ecx+8],0
+8237cc4d 89410c          mov     dword ptr [ecx+0Ch],eax
+8237cc50 8b4510          mov     eax,dword ptr [ebp+10h]
+8237cc53 c70113010000    mov     dword ptr [ecx],113h
+8237cc59 894110          mov     dword ptr [ecx+10h],eax
+8237cc5c 5d              pop     ebp
+8237cc5d c20c00          ret     0Ch
+```
+A `stdcall` function (`ret 0Ch` part, knowing it take 3 arguments from looking at [`msdn`](https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-keinitializedpc)). 
+At `3f`, `ecx` holds value of the first argument `Dpc` (_"Pointer to a KDPC structure that represents the DPC object to initialize. The caller must allocate storage for the structure from resident memory.", from msdn_). 
+To explore about the structure, type in `dt _kdpc`. Output:
+```assembly
+kd> dt _kdpc
+nt!_KDPC
+   +0x000 TargetInfoAsUlong : Uint4B
+   +0x000 Type             : UChar
+   +0x001 Importance       : UChar
+   +0x002 Number           : Uint2B
+   +0x004 DpcListEntry     : _SINGLE_LIST_ENTRY
+   +0x008 ProcessorHistory : Uint4B
+   +0x00c DeferredRoutine  : Ptr32     void 
+   +0x010 DeferredContext  : Ptr32 Void
+   +0x014 SystemArgument1  : Ptr32 Void
+   +0x018 SystemArgument2  : Ptr32 Void
+   +0x01c DpcData          : Ptr32 Void
+```
+
+Location `42`, `eax` holds value of second argument, `(PKDEFERRED_ROUTINE) DeferredRoutine`. 
+From `KDPC` structure details:  
+- `[ecx+1ch]` presents `Dpc.DpcData`
+- `[ecx+8]` presents `Dpc.ProcessHistory`
+- `[ecx+0ch]` presents `Dpc.DeferredRoutine`
+- `[ecx+10h]` presents `Dpc.DeferredContext`
+- `[ecx]` presents `Dpc.TargetInfoAsUlong`  
+
+Location `45`, `49` zeroes out `Dpc.DpcData` and `Dpc.ProcessHistory`. Location `4d` set `Dpc.DeferredRoutine` to value of `DeferredRoutine`.
+Location `50`, eax holds the third argument `(PVOID) DeferredContext`.
+Location `53`, `Dpc.TargetInfoAsULong` is set to 113h, which means `Dpc.Type = 0`, `Dpc.Importance = 1`, and `Dpc.Number = 13h`. At last, save `eax` back to `Dpc.DeferredContext` and return.
+In C, it will look similar to:
+```c
+void KeInitializeDpc(
+  [out]          PRKDPC Dpc,
+  [in]           PKDEFERRED_ROUTINE   DeferredRoutine,
+  [in, optional] PVOID  DeferredContext
+) {
+  Dpc.DpcData = 0;
+  Dpc.ProcessorHistory = 0;
+  Dpc.DeferredRoutine = DeferredRoutine;
+  Dpc.DeferredContext = DeferredContext;
+  Dpc.Type = 0;
+  Dpc.Importance = 1;
+  Dpc.Number = 13h;
+}
