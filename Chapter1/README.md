@@ -5,7 +5,7 @@
 | [Page 11](#exercise-page-11) | :heavy_check_mark: |
 | [Page 17](#exercise-page-17) | :heavy_check_mark: |
 | [Page 35 - 36](#exercise-page-35---36) | :heavy_check_mark: |
-
+ 
 ## Exercise page 11
 
 `[ebp + 8]` appeared to be a byte sequence of size unknown (but not greater than 0FFFFFFFFh). Speaking C way, this is a null-terminated string.  
@@ -94,7 +94,7 @@ To implement `return`, the compiler stores the base address of the struct onto t
 
 So, by some experiment on the MS C++ Compiler and GCC compiler, we can say the mechanism doesn't vary between compilers.
 
-# Exercise page 35 - 36
+## Exercise page 35 - 36
 
 1. The stack layout is described in [this gg sheet](https://docs.google.com/spreadsheets/d/1AQREVVd0bjASfqp_hRH5qtiQxko3ucsZ3aO7q1_bCl4/edit?usp=sharing). If there is any mistake, hope someone would point it out!  
 
@@ -102,8 +102,18 @@ So, by some experiment on the MS C++ Compiler and GCC compiler, we can say the m
 
 3. A `_` prefix and a `@` postfix followed by a number is used with functions using `stdcall` calling convention and the number after `@` indicates how many bytes are used for function paramaters. Windows' dlls use this by default.  
 
-4. My implement for:  
--  `strlen` function: Loop through string and compare until meet a NULL byte.
+4. My implement for these functions are listed below:  
+
+| function | 
+| --- | 
+| [`strlen`](#strlen) |  
+| [`strchr`](#strchr) |  
+| [`memset`](#memset) |  
+| [`strcmp`](#strcmp) |  
+| [`strset`](#strset) |  
+
+### `strlen`
+Loop through string and compare until meet a NULL byte.
 ```assembly
 strlen proc
     push    ebp
@@ -120,7 +130,8 @@ strlen proc
     ret     4
 strlen endp
 ```
-- `strchr` function: Loop through the string. If meet the character, return the position. If meet a NULL, it means the string doesn't contain the character, return the `ptr`.
+### `strchr`  
+Loop through the string. If meet the character, return the position. If meet a NULL, it means the string doesn't contain the character, return the `ptr`.
 ```assembly
 strchr proc
     push    ebp
@@ -145,7 +156,8 @@ strchr proc
     ret     8
 strchr endp
 ```
-- `memset` function: Loop through the string byte-to-byte for `size` time and set each to the value. Return the `ptr`.
+### `memset`
+Loop through the string byte-to-byte for `size` time and set each to the value. Return the `ptr`.
 ```assembly
 memset proc
     push    ebp
@@ -160,7 +172,8 @@ memset proc
     ret     0ch
 memset endp
 ```
-- `strcmp` function: First find one string's length so that we know how maximum times we need to loop through the 2 string and compare. If meets any different before reach the limit, stop execution and return the result based on the flags affected by the `cmpsb` instruction. If we continously meet equal characters for `len` times, it is probably equal (if the other string reachs its end too) or the string we calculated length is smaller in size. 
+### `strcmp` 
+First find one string's length so that we know how maximum times we need to loop through the 2 string and compare. If meets any different before reach the limit, stop execution and return the result based on the flags affected by the `cmpsb` instruction. If we continously meet equal characters for `len` times, it is probably equal (if the other string reachs its end too) or the string we calculated length is smaller in size. 
 ```assembly
 strcmp proc
     push    ebp
@@ -204,7 +217,8 @@ strcmp proc
 strcmp endp
 ```
 
-- `strset` function: set all characters in the string to `char` except the NULL character.
+### `strset`
+Set all characters in the string to `char` except the NULL character.
 ```assembly
 strset proc
     push    ebp
@@ -241,8 +255,12 @@ Some resources I found useful (if you are a beginner like me, i think you'll nee
 - Focus on how he take a shortcut to load symbols: https://voidsec.com/windows-kernel-debugging-exploitation/#More_Windows_Debuggee_Flavours
 - If something goes wrong with your symbols: https://stackoverflow.com/questions/30019889/how-to-set-up-symbols-in-windbg  
 
-Now let's get started!!!
-- `KeInitializeDpc`:  
+Now let's get started!!! 
+| function | 
+| --- | 
+| [`KeInitializeDpc`](#KeInitializeDpc) |  
+
+### `KeInitializeDpc` 
   
 Disassemble the function:  
 ```
@@ -311,11 +329,7 @@ typedef struct _KDPC {
   PVODI DpcData;
 } KDPC, *PRKDPC;
 
-void KeInitializeDpc(
-  [out]          PRKDPC Dpc,
-  [in]           PKDEFERRED_ROUTINE   DeferredRoutine,
-  [in, optional] PVOID  DeferredContext
-) {
+void KeInitializeDpc(PRKDPC Dpc, PKDEFERRED_ROUTINE   DeferredRoutine, PVOID  DeferredContext) {
   Dpc->DpcData = 0;
   Dpc->ProcessorHistory = 0;
   Dpc->DeferredRoutine = DeferredRoutine;
@@ -453,6 +467,180 @@ void KeInitializeApc(PRKAPC Apc, PRKTHREAD Thread, KAPC_ENVIRONMENT Environment,
     }
     Apc.Inserted = 0;
     return;
-  }
+}
 ```
+- `ObFastDereferenceObject`:
+```assembly
+kd> uf obfastdereferenceobject
+nt!ObfDereferenceObject:
+81cf6870 8bff            mov     edi,edi
+81cf6872 55              push    ebp
+81cf6873 8bec            mov     ebp,esp
+81cf6875 83e4f8          and     esp,0FFFFFFF8h
+81cf6878 51              push    ecx
+81cf6879 833d0022f88100  cmp     dword ptr [nt!ObpTraceFlags (81f82200)],0
+81cf6880 53              push    ebx
+81cf6881 8bd9            mov     ebx,ecx
+81cf6883 56              push    esi
+81cf6884 57              push    edi
+81cf6885 8d7be8          lea     edi,[ebx-18h]
+81cf6888 0f859ac71200    jne     nt!ObfDereferenceObject+0x12c7b8 (81e23028)  Branch
 
+nt!ObfDereferenceObject+0x1e:
+81cf688e 83ceff          or      esi,0FFFFFFFFh
+81cf6891 f00fc137        lock xadd dword ptr [edi],esi
+81cf6895 4e              dec     esi
+81cf6896 85f6            test    esi,esi
+81cf6898 7e09            jle     nt!ObfDereferenceObject+0x33 (81cf68a3)  Branch
+
+nt!ObfDereferenceObject+0x2a:
+81cf689a 8bc6            mov     eax,esi
+81cf689c 5f              pop     edi
+81cf689d 5e              pop     esi
+81cf689e 5b              pop     ebx
+81cf689f 8be5            mov     esp,ebp
+81cf68a1 5d              pop     ebp
+81cf68a2 c3              ret
+
+nt!ObfDereferenceObject+0x33:
+81cf68a3 8b4704          mov     eax,dword ptr [edi+4]
+81cf68a6 85c0            test    eax,eax
+81cf68a8 0f858fc71200    jne     nt!ObfDereferenceObject+0x12c7cd (81e2303d)  Branch
+
+nt!ObfDereferenceObject+0x3e:
+81cf68ae 85f6            test    esi,esi
+81cf68b0 0f88b1c71200    js      nt!ObfDereferenceObject+0x12c7f7 (81e23067)  Branch
+
+nt!ObfDereferenceObject+0x46:
+81cf68b6 64a124010000    mov     eax,dword ptr fs:[00000124h]
+81cf68bc 6683b83e01000000 cmp     word ptr [eax+13Eh],0
+81cf68c4 7540            jne     nt!ObfDereferenceObject+0x96 (81cf6906)  Branch
+
+nt!ObfDereferenceObject+0x56:
+81cf68c6 e835801000      call    nt!KeAreInterruptsEnabled (81dfe900)
+81cf68cb 84c0            test    al,al
+81cf68cd 7437            je      nt!ObfDereferenceObject+0x96 (81cf6906)  Branch
+
+nt!ObfDereferenceObject+0x5f:
+81cf68cf ff1594f0f781    call    dword ptr [nt!_imp__KeGetCurrentIrql (81f7f094)]
+81cf68d5 3c01            cmp     al,1
+81cf68d7 732d            jae     nt!ObfDereferenceObject+0x96 (81cf6906)  Branch
+
+nt!ObfDereferenceObject+0x69:
+81cf68d9 8bcf            mov     ecx,edi
+81cf68db e85084ffff      call    nt!OBJECT_HEADER_TO_HANDLE_REVOCATION_INFO (81ceed30)
+81cf68e0 85c0            test    eax,eax
+81cf68e2 7407            je      nt!ObfDereferenceObject+0x7b (81cf68eb)  Branch
+
+nt!ObfDereferenceObject+0x74:
+81cf68e4 8bc8            mov     ecx,eax
+81cf68e6 e845823900      call    nt!ObpHandleRevocationBlockRemoveObject (8208eb30)
+
+nt!ObfDereferenceObject+0x7b:
+81cf68eb 833d0022f88100  cmp     dword ptr [nt!ObpTraceFlags (81f82200)],0
+81cf68f2 751b            jne     nt!ObfDereferenceObject+0x9f (81cf690f)  Branch
+
+nt!ObfDereferenceObject+0x84:
+81cf68f4 32d2            xor     dl,dl
+81cf68f6 8bcf            mov     ecx,edi
+81cf68f8 e8b3f83000      call    nt!ObpRemoveObjectRoutine (820061b0)
+81cf68fd 5f              pop     edi
+81cf68fe 8bc6            mov     eax,esi
+81cf6900 5e              pop     esi
+81cf6901 5b              pop     ebx
+81cf6902 8be5            mov     esp,ebp
+81cf6904 5d              pop     ebp
+81cf6905 c3              ret
+
+nt!ObfDereferenceObject+0x96:
+81cf6906 8bcf            mov     ecx,edi
+81cf6908 e8f3b10b00      call    nt!ObpDeferObjectDeletion (81db1b00)
+81cf690d eb8b            jmp     nt!ObfDereferenceObject+0x2a (81cf689a)  Branch
+
+nt!ObfDereferenceObject+0x9f:
+81cf690f 8bcf            mov     ecx,edi
+81cf6911 e834cd5200      call    nt!ObpDeregisterObject (8222364a)
+81cf6916 ebdc            jmp     nt!ObfDereferenceObject+0x84 (81cf68f4)  Branch
+
+nt!ObfDereferenceObject+0x12c7b8:
+81e23028 6844666c74      push    746C6644h
+81e2302d 6a01            push    1
+81e2302f 32d2            xor     dl,dl
+81e23031 8bcf            mov     ecx,edi
+81e23033 e8bf2c0a00      call    nt!ObpPushStackInfo (81ec5cf7)
+81e23038 e95138edff      jmp     nt!ObfDereferenceObject+0x1e (81cf688e)  Branch
+
+nt!ObfDereferenceObject+0x12c7cd:
+81e2303d 50              push    eax
+81e2303e 8bc7            mov     eax,edi
+81e23040 c1e808          shr     eax,8
+81e23043 0fb6c8          movzx   ecx,al
+81e23046 0fb6470c        movzx   eax,byte ptr [edi+0Ch]
+81e2304a 33c8            xor     ecx,eax
+81e2304c 0fb605fcb7f881  movzx   eax,byte ptr [nt!ObHeaderCookie (81f8b7fc)]
+81e23053 6a01            push    1
+81e23055 33c8            xor     ecx,eax
+81e23057 53              push    ebx
+81e23058 8b048d00b8f881  mov     eax,dword ptr nt!ObTypeIndexTable (81f8b800)[ecx*4]
+81e2305f 50              push    eax
+81e23060 6a18            push    18h
+81e23062 e8edb5fdff      call    nt!KeBugCheckEx (81dfe654)
+
+nt!ObfDereferenceObject+0x12c7f7:
+81e23067 56              push    esi
+81e23068 6a02            push    2
+81e2306a 53              push    ebx
+81e2306b 6a00            push    0
+81e2306d 6a18            push    18h
+81e2306f e8e0b5fdff      call    nt!KeBugCheckEx (81dfe654)
+81e23074 cc              int     3
+81e23075 33c0            xor     eax,eax
+81e23077 e9823dedff      jmp     nt!KeAbPreAcquire+0xfe (81cf6dfe)  Branch
+
+nt!KeAbPreAcquire+0xfe:
+81cf6dfe 5f              pop     edi
+81cf6dff 5e              pop     esi
+81cf6e00 8be5            mov     esp,ebp
+81cf6e02 5d              pop     ebp
+81cf6e03 8be3            mov     esp,ebx
+81cf6e05 5b              pop     ebx
+81cf6e06 c20400          ret     4
+
+nt!ObFastDereferenceObject:
+81cf3f40 8bff            mov     edi,edi
+81cf3f42 56              push    esi
+81cf3f43 8b31            mov     esi,dword ptr [ecx]
+81cf3f45 8bc6            mov     eax,esi
+81cf3f47 57              push    edi
+81cf3f48 8bfa            mov     edi,edx
+81cf3f4a 33c7            xor     eax,edi
+81cf3f4c 83f807          cmp     eax,7
+81cf3f4f 7310            jae     nt!ObFastDereferenceObject+0x21 (81cf3f61)  Branch
+
+nt!ObFastDereferenceObject+0x11:
+81cf3f51 8d5601          lea     edx,[esi+1]
+81cf3f54 8bc6            mov     eax,esi
+81cf3f56 f00fb111        lock cmpxchg dword ptr [ecx],edx
+81cf3f5a 3bc6            cmp     eax,esi
+81cf3f5c 750c            jne     nt!ObFastDereferenceObject+0x2a (81cf3f6a)  Branch
+
+nt!ObFastDereferenceObject+0x1e:
+81cf3f5e 5f              pop     edi
+81cf3f5f 5e              pop     esi
+81cf3f60 c3              ret
+
+nt!ObFastDereferenceObject+0x21:
+81cf3f61 8bcf            mov     ecx,edi
+81cf3f63 5f              pop     edi
+81cf3f64 5e              pop     esi
+81cf3f65 e906290000      jmp     nt!ObfDereferenceObject (81cf6870)  Branch
+
+nt!ObFastDereferenceObject+0x2a:
+81cf3f6a 8bf0            mov     esi,eax
+81cf3f6c 33c7            xor     eax,edi
+81cf3f6e 83f807          cmp     eax,7
+81cf3f71 72de            jb      nt!ObFastDereferenceObject+0x11 (81cf3f51)  Branch
+
+nt!ObFastDereferenceObject+0x33:
+81cf3f73 ebec            jmp     nt!ObFastDereferenceObject+0x21 (81cf3f61)  Branch
+```
