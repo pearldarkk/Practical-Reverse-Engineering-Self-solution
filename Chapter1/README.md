@@ -433,14 +433,7 @@ typedef struct KAPC {
   UCHAR Inserted;
 } KAPC, *PRKAPC;
 
-void KeInitializeApc(PRKAPC Apc,
-  PRKTHREAD Thread,
-  KAPC_ENVIRONMENT Environment,
-  PKKERNEL_ROUTINE KernelRoutine,
-  PKRUNDOWN_ROUTINE RundownRoutine OPTIONAL,
-  PKNORMAL_ROUTINE NormalRoutine OPTIONAL,
-  KPROCESSOR_MODE ApcMode OPTIONAL,
-  PVOID NormalContext OPTIONAL) {
+void KeInitializeApc(PRKAPC Apc, PRKTHREAD Thread, KAPC_ENVIRONMENT Environment, PKKERNEL_ROUTINE KernelRoutine, PKRUNDOWN_ROUTINE RundownRoutine OPTIONAL, PKNORMAL_ROUTINE NormalRoutine OPTIONAL, KPROCESSOR_MODE ApcMode OPTIONAL, PVOID NormalContext OPTIONAL) {
     Apc.Type = 12h;
     Apc.Size = 30h;
     if (Environment == 2) {
