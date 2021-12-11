@@ -451,7 +451,7 @@ void KeInitializeApc(PRKAPC Apc,
     Apc.RundownRoutine = RundownRoutine;
     Apc.NormalRoutine = NormalRoutine;
     Apc.Thread = Thread;
-    If (NormalRoutine == 0) {
+    if (NormalRoutine == 0) {
       Apc.NormalContext = 0;
       Apc.Mode = 0;
     } else {
