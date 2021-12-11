@@ -241,7 +241,10 @@ Some resources I found useful (if you are a beginner like me, i think you'll nee
 - Focus on how he take a shortcut to load symbols: https://voidsec.com/windows-kernel-debugging-exploitation/#More_Windows_Debuggee_Flavours
 - If something goes wrong with your symbols: https://stackoverflow.com/questions/30019889/how-to-set-up-symbols-in-windbg  
 
-Now let's get started, first with `KeInitializeDpc`. Disassemble the function:  
+Now let's get started!!!
+- `KeInitializeDpc`:  
+  
+Disassemble the function:  
 ```
 uf keinitializedpc
 ```
@@ -292,19 +295,171 @@ From `KDPC` structure details:
 
 Location `45`, `49` zeroes out `Dpc.DpcData` and `Dpc.ProcessHistory`. Location `4d` set `Dpc.DeferredRoutine` to value of `DeferredRoutine`.
 Location `50`, eax holds the third argument `(PVOID) DeferredContext`.
-Location `53`, `Dpc.TargetInfoAsULong` is set to 113h, which means `Dpc.Type = 0`, `Dpc.Importance = 1`, and `Dpc.Number = 13h`. At last, save `eax` back to `Dpc.DeferredContext` and return.
+Location `53`, `Dpc.TargetInfoAsULong` is set to 113h, which means `Dpc.Type = 13h`, `Dpc.Importance = 1`, and `Dpc.Number = 0` _(Windows are Littie Endian system)_. At last, save `eax` back to `Dpc.DeferredContext` and return.
 In C, it will look similar to:
 ```c
+typedef struct _KDPC {
+  UCHAR Type;
+  UCHAR Importance;
+  WORD  Number;
+  SINGLE_LIST_ENTRY DpcListEntry;
+  DOUBLEWORD ProcessorHistory;
+  PVOID DeferredRoutine;
+  PVOID DeferredContext;
+  PVOID SystemArgument1;
+  PVOID SystemArgument2;
+  PVODI DpcData;
+} KDPC, *PRKDPC;
+
 void KeInitializeDpc(
   [out]          PRKDPC Dpc,
   [in]           PKDEFERRED_ROUTINE   DeferredRoutine,
   [in, optional] PVOID  DeferredContext
 ) {
-  Dpc.DpcData = 0;
-  Dpc.ProcessorHistory = 0;
-  Dpc.DeferredRoutine = DeferredRoutine;
-  Dpc.DeferredContext = DeferredContext;
-  Dpc.Type = 0;
-  Dpc.Importance = 1;
-  Dpc.Number = 13h;
+  Dpc->DpcData = 0;
+  Dpc->ProcessorHistory = 0;
+  Dpc->DeferredRoutine = DeferredRoutine;
+  Dpc->DeferredContext = DeferredContext;
+  Dpc->Type = 13h;
+  Dpc->Importance = 1;
+  Dpc->Number = 0;
 }
+```
+- `KeInitializeApc`:
+```assembly
+kd> uf keinitializeapc
+nt!KeInitializeApc:
+81d69ad0 8bff            mov     edi,edi
+81d69ad2 55              push    ebp
+81d69ad3 8bec            mov     ebp,esp
+81d69ad5 8b5508          mov     edx,dword ptr [ebp+8]
+81d69ad8 8b4510          mov     eax,dword ptr [ebp+10h]
+81d69adb 8b4d0c          mov     ecx,dword ptr [ebp+0Ch]
+81d69ade c60212          mov     byte ptr [edx],12h
+81d69ae1 c6420230        mov     byte ptr [edx+2],30h
+81d69ae5 83f802          cmp     eax,2
+81d69ae8 7439            je      nt!KeInitializeApc+0x53 (81d69b23)  Branch
+
+nt!KeInitializeApc+0x1a:
+81d69aea 88422c          mov     byte ptr [edx+2Ch],al
+81d69aed 8b4514          mov     eax,dword ptr [ebp+14h]
+81d69af0 894214          mov     dword ptr [edx+14h],eax
+81d69af3 8b4518          mov     eax,dword ptr [ebp+18h]
+81d69af6 894218          mov     dword ptr [edx+18h],eax
+81d69af9 8b451c          mov     eax,dword ptr [ebp+1Ch]
+81d69afc 894a08          mov     dword ptr [edx+8],ecx
+81d69aff 8bc8            mov     ecx,eax
+81d69b01 f7d9            neg     ecx
+81d69b03 89421c          mov     dword ptr [edx+1Ch],eax
+81d69b06 1bc9            sbb     ecx,ecx
+81d69b08 234d24          and     ecx,dword ptr [ebp+24h]
+81d69b0b 85c0            test    eax,eax
+81d69b0d 0f94c0          sete    al
+81d69b10 fec8            dec     al
+81d69b12 224520          and     al,byte ptr [ebp+20h]
+81d69b15 88422d          mov     byte ptr [edx+2Dh],al
+81d69b18 894a20          mov     dword ptr [edx+20h],ecx
+81d69b1b c6422e00        mov     byte ptr [edx+2Eh],0
+81d69b1f 5d              pop     ebp
+81d69b20 c22000          ret     20h
+
+nt!KeInitializeApc+0x53:
+81d69b23 8a816a010000    mov     al,byte ptr [ecx+16Ah]
+81d69b29 ebbf            jmp     nt!KeInitializeApc+0x1a (81d69aea)  Branch
+```  
+As usual, a `stdcall` function.  
+According to [codewarrior.vn](http://www.codewarrior.cn/ntdoc/winnt/ke/KeInitializeApc.htm):
+- `[ebp + 8]`: `Apc`, a pointer to a control object of type `APC`
+- `[ebp + 0ch]`: `Thread`
+- `[ebp + 10h]`: `Environment` 
+- ...
+
+After loc `db`, `edx` holds pointer `Apc`, `eax` holds `Environment`, `ecx` hold `Thread`.
+Search for struct `Apc` by typing in `dt _kapc`:
+```assembly
+nt!_KAPC
+   +0x000 Type             : UChar
+   +0x001 SpareByte0       : UChar
+   +0x002 Size             : UChar
+   +0x003 SpareByte1       : UChar
+   +0x004 SpareLong0       : Uint4B
+   +0x008 Thread           : Ptr32 _KTHREAD
+   +0x00c ApcListEntry     : _LIST_ENTRY
+   +0x014 KernelRoutine    : Ptr32     void 
+   +0x018 RundownRoutine   : Ptr32     void 
+   +0x01c NormalRoutine    : Ptr32     void 
+   +0x014 Reserved         : [3] Ptr32 Void
+   +0x020 NormalContext    : Ptr32 Void
+   +0x024 SystemArgument1  : Ptr32 Void
+   +0x028 SystemArgument2  : Ptr32 Void
+   +0x02c ApcStateIndex    : Char
+   +0x02d ApcMode          : Char
+   +0x02e Inserted         : UChar
+```
+Loc `de` sets `Apc.Type` to `12h`. Loc `e1` sets `Apc.Size` to `30h`. 
+Loc `e5` compares wether `Environment` equals `2`. 
+If equal, jump to `nt!KeInitializeApc+0x53` to set `al` to value at `[ecx+16ah]`, 
+which means `Thread.ApcStateIndex` _(type in `dt _kthread` to see)_ and 
+jump to `nt!KeInitializeApc+0x1a`. If not equal, continue at `nt!KeInitializeApc+0x1a`, too.  
+Loc `ea` set `Apc.ApcStateIndex` to `al`. Loc `ed` and `f0` set `Apc.KernelRoutine` to function 4th argument `KernelRoutine`.
+Loc `f3`, `f6` set `Apc.RundownRoutine` to function 5th argument `RundownRoutine`.
+Loc `fc` set `Apc.Thread` to `Thread`, then `ecx` is set to `Apc.NormalRoutine`.  
+`neg ecx` (loc `01`) clears the carry flag `cf` (set to 0) if `ecx == 0`, else sets `cf`, and 
+`sbb ecx, ecx` (loc `06`) is a common idiom _(in compiler-generated)_ to isolate `-cf`,
+`and` it with function argument `NormalContext` (loc `08`) and store result to `Apc.NormalContext` (loc `18`).  
+Loc `f9`, `03` set `Apc.NormalRoutine` to function argument `NormalRoutine` and test if it equals 0 (loc `0b`).
+If `zf` is set (`eax` = 0), `al` is set 1, else `al` is set to 0 (loc `0d`). Decrease `al`, `and` with function argument `ApcMode` and set 
+`Apc.Mode` to the result (from loc `0b` to `2d`).  
+Lastly, set `Apc.Inserted` to `0` and return the function.  
+In C, this function will look something similar to this:
+```c
+typedef struct KAPC {
+  UCHAR Type;
+  UCHAR SpareByte0;
+  UCHAR Size;
+  UCHAR SpareByte1;
+  DOUBLEWORD SpareLong0;
+  KTHREAD Thread
+  LIST_ENTRY ApcListEntry;
+  PVOID KernelRoutine;
+  PVOID RundownRoutine;
+  PVOID NormalRoutine;
+  PVOID[3] Reserved;
+  PVOID NormalContext;
+  PVOID SystemArgument1;
+  PVOID SystemArgument2;
+  CHAR ApcStateIndex;
+  CHAR ApcMode;
+  UCHAR Inserted;
+} KAPC, *PRKAPC;
+
+void KeInitializeApc(PRKAPC Apc,
+  PRKTHREAD Thread,
+  KAPC_ENVIRONMENT Environment,
+  PKKERNEL_ROUTINE KernelRoutine,
+  PKRUNDOWN_ROUTINE RundownRoutine OPTIONAL,
+  PKNORMAL_ROUTINE NormalRoutine OPTIONAL,
+  KPROCESSOR_MODE ApcMode OPTIONAL,
+  PVOID NormalContext OPTIONAL) {
+    Apc.Type = 12h;
+    Apc.Size = 30h;
+    if (Environment == 2) {
+      Apc.StateIndex = Thread.ApcStateIndex;
+    }
+    else Apc.StateIndex = Environment;
+    Apc.KernelRoutine = KernelRoutine;
+    Apc.RundownRoutine = RundownRoutine;
+    Apc.NormalRoutine = NormalRoutine;
+    Apc.Thread = Thread;
+    If (NormalRoutine == 0) {
+      Apc.NormalContext = 0;
+      Apc.Mode = 0;
+    } else {
+      Apc.NormalContext = NormalContext;
+      Apc.ApcMode = ApcMode;
+    }
+    Apc.Inserted = 0;
+    return;
+  }
+```
+
