@@ -259,6 +259,13 @@ Now let's get started!!!
 | function | 
 | --- | 
 | [`KeInitializeDpc`](#KeInitializeDpc) |  
+| [`KeInitializeApc`](#KeInitializeApc) |  
+| [`ObFastDereferenceObject`](#ObFastDereferenceObject) |  
+| [`KeInitializeQueue`](#KeInitializeQueue) |  
+| [`KxWaitForLockChainValid`](#KxWaitForLockChainValid) |  
+| [`KeReadyThread`](#KeReadyThread) |  
+| [`KiInitializeTSS`](#KiInitializeTSS) |  
+| [`RtValidateUnicodeString`](#RtValidateUnicodeString) |  
 
 ### `KeInitializeDpc` 
   
@@ -339,7 +346,7 @@ void KeInitializeDpc(PRKDPC Dpc, PKDEFERRED_ROUTINE   DeferredRoutine, PVOID  De
   Dpc->Number = 0;
 }
 ```
-- `KeInitializeApc`:
+### `KeInitializeApc`
 ```assembly
 kd> uf keinitializeapc
 nt!KeInitializeApc:
@@ -469,7 +476,8 @@ void KeInitializeApc(PRKAPC Apc, PRKTHREAD Thread, KAPC_ENVIRONMENT Environment,
     return;
 }
 ```
-- `ObFastDereferenceObject`:
+
+### `ObFastDereferenceObject`
 ```assembly
 kd> uf obfastdereferenceobject
 nt!ObfDereferenceObject:
